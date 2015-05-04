@@ -1,9 +1,9 @@
 #include <HsFFI.h>
 #include <dlfcn.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
 #ifdef __GLASGOW_HASKELL__
 #include "Hook_stub.h"
 extern void __stginit_Hook(void);
@@ -15,18 +15,18 @@ The Glorious Glasgow Haskell Compilation System User's Guide's
 section 13.1.1.8, so we have to do a little shuffle.
 */
 
-static int haskell = 0;
+static bool haskell = false;
 
 void stop_the_haskell(void) {
-	if (haskell != 0) {
+	if (haskell) {
 		hs_exit();
 
-		haskell = 0;
+		haskell = false;
 	}
 }
 
 void start_the_haskell(void) {
-	if (haskell == 0) {
+	if (!haskell) {
 		hs_init(NULL, NULL);
 
 #ifdef __GLASGOW_HASKELL__
@@ -35,12 +35,12 @@ void start_the_haskell(void) {
 
 		atexit(stop_the_haskell);
 
-		haskell = 1;
+		haskell = true;
 	}
 }
 
-#define GENERATE(type, procedure) \
-	static type (* the_##procedure)(void) = NULL; \
+#define GENE(type, procedure, ...) \
+	static type (* the_##procedure)(__VA_ARGS__) = NULL; \
 \
 	static void get_the_##procedure(void) { \
 		if (the_##procedure == NULL) { \
@@ -50,7 +50,7 @@ void start_the_haskell(void) {
 		} \
 	} \
 \
-	type procedure(void) { \
+	type procedure(__VA_ARGS__) { \
 		int result; \
 \
 		get_the_##procedure(); \
@@ -60,19 +60,18 @@ void start_the_haskell(void) {
 		result = hook(#procedure); \
 		if (result != 0) \
 			fprintf(stderr, "hook: %s: error %d\n", #procedure, result); \
-\
-		return the_##procedure(); \
-	} \
 
-GENERATE(pid_t, fork)
-GENERATE(pid_t, vfork)
+#define RATE(procedure, ...) \
+		return the_##procedure(__VA_ARGS__); \
+	}
 
-/*
-GENERATE(exit)
-GENERATE(_exit)
-GENERATE(_Exit)
-GENERATE(clone)
-GENERATE(__clone2)
-GENERATE(posix_spawn)
-GENERATE(posix_spawnp)
-*/
+#define RATED(procedure, ...) \
+		the_##procedure(__VA_ARGS__); \
+	}
+
+GENE(void, abort, void) RATED(abort)
+GENE(void, exit, int status) RATED(exit, status)
+GENE(void, _exit, int status) RATED(_exit, status)
+GENE(void, _Exit, int status) RATED(_Exit, status)
+GENE(pid_t, fork, void) RATE(fork)
+GENE(pid_t, vfork, void) RATE(vfork)
