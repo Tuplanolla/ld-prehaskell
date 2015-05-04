@@ -10,6 +10,12 @@
 extern void __stginit_Hook(void);
 #endif
 
+/*
+Initialization and exiting multiple times is not possible according to
+The Glorious Glasgow Haskell Compilation System User's Guide's
+section 13.1.1.8, so we have to do a little shuffle.
+*/
+
 static bool haskell = false;
 
 void stop_the_haskell(void) {
@@ -26,11 +32,6 @@ void start_the_haskell(void) {
 
 	atexit(stop_the_haskell);
 }
-
-/*
-Initialization and exiting multiple times is currently not possible according to
-The Glorious Glasgow Haskell Compilation System User's Guide's section 13.1.1.8.
-*/
 
 #define GENERATE(type, procedure) \
 	static type (* the_##procedure)(void) = NULL; \
