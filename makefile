@@ -7,7 +7,7 @@ clean:
 	$(RM) *_stub.h *.hi *.o *.so
 
 run: Hook.so
-	LD_PRELOAD=./Hook.so find . -not -name '.*' -exec file {} \;
+	LD_PRELOAD=./Hook.so find . -maxdepth 1 -not -name '.*' -exec file {} \;
 
 Hook.so: Hook.o hook.o
 	$(GHC) -dynamic -fPIC -o $@ -shared $^ \
